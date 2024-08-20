@@ -80,6 +80,11 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
         }
     }
 
+    @Override
+    public void exitProperty(StructurizrDSLParser.PropertyContext ctx) {
+        this.workspace.addProperty(ctx.key.getText(), ctx.value.getText());
+    }
+
     public Workspace getWorkspace() {
         return workspace;
     }

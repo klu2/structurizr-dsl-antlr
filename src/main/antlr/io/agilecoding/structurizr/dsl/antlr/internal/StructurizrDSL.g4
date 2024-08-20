@@ -1,6 +1,6 @@
 grammar StructurizrDSL;
 
-workspace: 'workspace' (name=STRING (description=STRING)?)? '{' model views '}';
+workspace: 'workspace' (name=STRING (description=STRING)?)? '{' model? views? properties? '}';
 
 model: 'model' '{' (person | softwareSystem | relationship)* '}';
 views: 'views' '{' (systemContext)*  '}';
@@ -12,6 +12,9 @@ relationship: source=ID '->' destination=ID (description=STRING)?;
 systemContext: 'systemContext' softwareSystemId=ID '{' include* (autolayout)? '}';
 include: 'include' (STAR | idList);
 autolayout: 'autolayout';
+
+properties: 'properties' '{' (property)* '}';
+property: key=STRING value=STRING;
 
 idList: ID (ID)*;
 
