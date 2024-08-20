@@ -64,6 +64,12 @@ public class AntlrStructurizrParserTests {
         assertEquals(2, workspace.getViews().getDynamicViews().size());
     }
 
+    @Test
+    void excludeImpliedRelationship() throws IOException {
+        Workspace workspace = parseWorkspace("exclude-implied-relationship.dsl");
+
+    }
+
     private Workspace parseWorkspace(String fileName) throws IOException {
         File file = new File("src/test/resources/dsl/" + fileName);
         if (!file.exists()) {

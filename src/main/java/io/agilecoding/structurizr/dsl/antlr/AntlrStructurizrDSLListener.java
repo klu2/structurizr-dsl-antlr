@@ -4,6 +4,7 @@ import com.structurizr.Workspace;
 import com.structurizr.model.*;
 import com.structurizr.view.DynamicView;
 import com.structurizr.view.SystemContextView;
+import com.structurizr.view.SystemLandscapeView;
 import io.agilecoding.structurizr.dsl.antlr.internal.StructurizrDSLBaseListener;
 import io.agilecoding.structurizr.dsl.antlr.internal.StructurizrDSLParser;
 
@@ -14,7 +15,7 @@ import java.util.UUID;
 class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
 
     private Workspace workspace;
-    private final Map<String, Element> elementsByDslID = new HashMap<>();
+    private final Map<String, ModelItem> elementsByDslID = new HashMap<>();
 
     @Override
     public void enterWorkspace(StructurizrDSLParser.WorkspaceContext ctx) {
@@ -49,55 +50,75 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
         if (ctx.description != null) {
             softwareSystem.setDescription(ctx.description.getText());
         }
-        elementsByDslID.put(ctx.id.getText(), softwareSystem);
+        if (ctx.id != null) {
+            elementsByDslID.put(ctx.id.getText(), softwareSystem);
+        }
     }
 
     @Override
     public void exitModel(StructurizrDSLParser.ModelContext ctx) {
-        ctx.relationship().forEach(relCtx -> {
-            Element source = this.elementsByDslID.get(relCtx.source.getText());
-            Element destination = this.elementsByDslID.get(relCtx.destination.getText());
+        for (var relCtx : ctx.relationship()) {
+            ModelItem source = this.elementsByDslID.get(relCtx.source.getText());
+            ModelItem destination = this.elementsByDslID.get(relCtx.destination.getText());
             String description = (relCtx.description != null) ? relCtx.description.getText() : "";
 
+            Relationship relationship = null;
             if (source instanceof StaticStructureElement staticStructureElement) {
                 if (destination instanceof SoftwareSystem softwareSystem) {
-                    staticStructureElement.uses(softwareSystem, description);
+                    relationship = staticStructureElement.uses(softwareSystem, description);
                 } else if (destination instanceof Container container) {
-                    staticStructureElement.uses(container, description);
+                    relationship = staticStructureElement.uses(container, description);
                 } else if (destination instanceof CustomElement customElement) {
-                    staticStructureElement.uses(customElement, description);
+                    relationship = staticStructureElement.uses(customElement, description);
                 }
             }
-        });
-    }
-
-    @Override
-    public void exitSystemContext(StructurizrDSLParser.SystemContextContext ctx) {
-        SoftwareSystem softwareSystem = (SoftwareSystem) this.elementsByDslID.get(ctx.softwareSystemId.getText());
-        SystemContextView systemContextView = this.workspace.getViews().createSystemContextView(softwareSystem, UUID.randomUUID().toString(), "");
-        for (StructurizrDSLParser.IncludeContext includeContext : ctx.include()) {
-            if (includeContext.STAR() != null) {
-                systemContextView.addAllSoftwareSystems();
-                systemContextView.addAllPeople();
-            } else {
-                includeContext.idList().ID().forEach(id -> {
-                    Element element = this.elementsByDslID.get(id.getText());
-                    if (element instanceof SoftwareSystem ss) {
-                        systemContextView.add(ss);
-                    } else if (element instanceof Person p) {
-                        systemContextView.add(p);
-                    }
-                });
+            if (relCtx.id != null) {
+                elementsByDslID.put(relCtx.id.getText(), relationship);
             }
         }
     }
 
     @Override
-    public void exitDynamic(StructurizrDSLParser.DynamicContext ctx) {
+    public void exitSystemContextView(StructurizrDSLParser.SystemContextViewContext ctx) {
+        SoftwareSystem softwareSystem = (SoftwareSystem) this.elementsByDslID.get(ctx.softwareSystemId.getText());
+        SystemContextView view = this.workspace.getViews().createSystemContextView(softwareSystem, UUID.randomUUID().toString(), "");
+        for (StructurizrDSLParser.IncludeContext includeContext : ctx.include()) {
+            if (includeContext.STAR() != null) {
+                view.addAllSoftwareSystems();
+                view.addAllPeople();
+            } else {
+                for (var id : includeContext.idList().ID()) {
+                    ModelItem element = this.elementsByDslID.get(id.getText());
+                    if (element instanceof SoftwareSystem ss) {
+                        view.add(ss);
+                    } else if (element instanceof Person p) {
+                        view.add(p);
+                    } else if (element instanceof Relationship r) {
+                        view.add(r);
+                    }
+                }
+            }
+        }
+        for (var excludeContext : ctx.exclude()) {
+            for (var id : excludeContext.idList().ID()) {
+                ModelItem element = this.elementsByDslID.get(id.getText());
+                if (element instanceof SoftwareSystem ss) {
+                    view.remove(ss);
+                } else if (element instanceof Person p) {
+                    view.remove(p);
+                } else if (element instanceof Relationship r) {
+                    view.remove(r);
+                }
+            }
+        }
+    }
+
+    @Override
+    public void exitDynamicView(StructurizrDSLParser.DynamicViewContext ctx) {
         final DynamicView dynamicView = this.workspace.getViews().createDynamicView("", "");
         ctx.relationship().forEach(relationshipContext -> {
-            Element source = this.elementsByDslID.get(relationshipContext.source.getText());
-            Element destination = this.elementsByDslID.get(relationshipContext.destination.getText());
+            ModelItem source = this.elementsByDslID.get(relationshipContext.source.getText());
+            ModelItem destination = this.elementsByDslID.get(relationshipContext.destination.getText());
 
             if (source instanceof StaticStructureElement sourceElement && destination instanceof StaticStructureElement targetElement) {
                 if (relationshipContext.description != null) {
@@ -108,6 +129,40 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
             }
             // TODO other combinations of source and destination
         });
+    }
+
+    @Override
+    public void exitSystemLandscapeView(StructurizrDSLParser.SystemLandscapeViewContext ctx) {
+        SystemLandscapeView view = this.workspace.getViews().createSystemLandscapeView(UUID.randomUUID().toString(), "");
+        for (StructurizrDSLParser.IncludeContext includeContext : ctx.include()) {
+            if (includeContext.STAR() != null) {
+                view.addAllSoftwareSystems();
+                view.addAllPeople();
+            } else {
+                for (var id : includeContext.idList().ID()) {
+                    ModelItem element = this.elementsByDslID.get(id.getText());
+                    if (element instanceof SoftwareSystem ss) {
+                        view.add(ss);
+                    } else if (element instanceof Person p) {
+                        view.add(p);
+                    } else if (element instanceof Relationship r) {
+                        view.add(r);
+                    }
+                }
+            }
+        }
+        for (var excludeContext : ctx.exclude()) {
+            for (var id : excludeContext.idList().ID()) {
+                ModelItem element = this.elementsByDslID.get(id.getText());
+                if (element instanceof SoftwareSystem ss) {
+                    view.remove(ss);
+                } else if (element instanceof Person p) {
+                    view.remove(p);
+                } else if (element instanceof Relationship r) {
+                    view.remove(r);
+                }
+            }
+        }
     }
 
     public Workspace getWorkspace() {
