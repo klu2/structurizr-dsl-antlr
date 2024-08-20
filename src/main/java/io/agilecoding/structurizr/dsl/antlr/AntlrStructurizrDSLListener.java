@@ -2,6 +2,7 @@ package io.agilecoding.structurizr.dsl.antlr;
 
 import com.structurizr.Workspace;
 import com.structurizr.model.*;
+import com.structurizr.view.DynamicView;
 import com.structurizr.view.SystemContextView;
 import io.agilecoding.structurizr.dsl.antlr.internal.StructurizrDSLBaseListener;
 import io.agilecoding.structurizr.dsl.antlr.internal.StructurizrDSLParser;
@@ -25,6 +26,15 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
     }
 
     @Override
+    public void exitWorkspace(StructurizrDSLParser.WorkspaceContext ctx) {
+        if (ctx.properties() != null) {
+            for (var p : ctx.properties().property()) {
+                this.workspace.addProperty(p.key.getText(), p.value.getText());
+            }
+        }
+    }
+
+    @Override
     public void exitPerson(StructurizrDSLParser.PersonContext ctx) {
         Person person = this.workspace.getModel().addPerson(ctx.name.getText());
         if (ctx.description != null) {
@@ -43,20 +53,22 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
     }
 
     @Override
-    public void exitRelationship(StructurizrDSLParser.RelationshipContext ctx) {
-        Element source = this.elementsByDslID.get(ctx.source.getText());
-        Element destination = this.elementsByDslID.get(ctx.destination.getText());
-        String description = (ctx.description != null) ? ctx.description.getText() : "";
+    public void exitModel(StructurizrDSLParser.ModelContext ctx) {
+        ctx.relationship().forEach(relCtx -> {
+            Element source = this.elementsByDslID.get(relCtx.source.getText());
+            Element destination = this.elementsByDslID.get(relCtx.destination.getText());
+            String description = (relCtx.description != null) ? relCtx.description.getText() : "";
 
-        if (source instanceof StaticStructureElement staticStructureElement) {
-            if (destination instanceof SoftwareSystem softwareSystem) {
-                staticStructureElement.uses(softwareSystem, description);
-            } else if (destination instanceof Container container) {
-                staticStructureElement.uses(container, description);
-            } else if (destination instanceof CustomElement customElement) {
-                staticStructureElement.uses(customElement, description);
+            if (source instanceof StaticStructureElement staticStructureElement) {
+                if (destination instanceof SoftwareSystem softwareSystem) {
+                    staticStructureElement.uses(softwareSystem, description);
+                } else if (destination instanceof Container container) {
+                    staticStructureElement.uses(container, description);
+                } else if (destination instanceof CustomElement customElement) {
+                    staticStructureElement.uses(customElement, description);
+                }
             }
-        }
+        });
     }
 
     @Override
@@ -81,8 +93,21 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
     }
 
     @Override
-    public void exitProperty(StructurizrDSLParser.PropertyContext ctx) {
-        this.workspace.addProperty(ctx.key.getText(), ctx.value.getText());
+    public void exitDynamic(StructurizrDSLParser.DynamicContext ctx) {
+        final DynamicView dynamicView = this.workspace.getViews().createDynamicView("", "");
+        ctx.relationship().forEach(relationshipContext -> {
+            Element source = this.elementsByDslID.get(relationshipContext.source.getText());
+            Element destination = this.elementsByDslID.get(relationshipContext.destination.getText());
+
+            if (source instanceof StaticStructureElement sourceElement && destination instanceof StaticStructureElement targetElement) {
+                if (relationshipContext.description != null) {
+                    dynamicView.add(sourceElement, relationshipContext.description.getText(), targetElement);
+                } else {
+                    dynamicView.add(sourceElement, targetElement);
+                }
+            }
+            // TODO other combinations of source and destination
+        });
     }
 
     public Workspace getWorkspace() {

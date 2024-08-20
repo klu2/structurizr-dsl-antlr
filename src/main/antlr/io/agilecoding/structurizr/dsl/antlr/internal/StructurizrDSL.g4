@@ -3,18 +3,21 @@ grammar StructurizrDSL;
 workspace: 'workspace' (name=STRING (description=STRING)?)? '{' model? views? properties? '}';
 
 model: 'model' '{' (person | softwareSystem | relationship)* '}';
-views: 'views' '{' (systemContext)*  '}';
+views: 'views' '{' (systemContext | dynamic)*  '}';
 
 person: id=ID '=' 'person' name=STRING (description=STRING)?;
 softwareSystem: id=ID '=' 'softwareSystem' name=STRING (description=STRING)?;
 relationship: source=ID '->' destination=ID (description=STRING)?;
 
-systemContext: 'systemContext' softwareSystemId=ID '{' include* (autolayout)? '}';
+systemContext: 'systemContext' softwareSystemId=ID '{' include* autolayout? '}';
 include: 'include' (STAR | idList);
-autolayout: 'autolayout';
+
+dynamic: 'dynamic' STAR '{' (relationship)*  (autolayout)? '}';
 
 properties: 'properties' '{' (property)* '}';
 property: key=STRING value=STRING;
+
+autolayout: 'autolayout' | 'autoLayout';
 
 idList: ID (ID)*;
 

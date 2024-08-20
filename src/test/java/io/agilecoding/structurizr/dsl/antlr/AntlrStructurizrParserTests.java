@@ -57,6 +57,13 @@ public class AntlrStructurizrParserTests {
         assertEquals("false", workspace.getProperties().get("structurizr.dslEditor"));
     }
 
+    @Test
+    void dynamic() throws IOException {
+        Workspace workspace = parseWorkspace("dynamic.dsl");
+
+        assertEquals(2, workspace.getViews().getDynamicViews().size());
+    }
+
     private Workspace parseWorkspace(String fileName) throws IOException {
         File file = new File("src/test/resources/dsl/" + fileName);
         if (!file.exists()) {
