@@ -1,0 +1,46 @@
+plugins {
+    id 'java'
+    id 'antlr'
+    id 'maven-publish'
+}
+
+group = 'io.agilecoding.structurizr.dsl'
+version = '0.0.1-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+    // required in order to not publish antlr4 as a transitive dependency
+    api.extendsFrom = []
+}
+
+dependencies {
+    implementation 'com.structurizr:structurizr-core:2.1.3'
+    implementation 'org.antlr:antlr4-runtime:4.9.3'
+
+    antlr 'org.antlr:antlr4:4.9.3'
+
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+
+generateGrammarSource {
+    arguments += ['-listener', '-package', 'io.agilecoding.structurizr.dsl.antlr.internal']
+}
+
+compileJava.dependsOn generateGrammarSource
+
+test {
+    useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}
