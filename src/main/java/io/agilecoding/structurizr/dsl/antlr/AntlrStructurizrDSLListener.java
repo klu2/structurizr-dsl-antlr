@@ -41,7 +41,9 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
         if (ctx.description != null) {
             person.setDescription(ctx.description.getText());
         }
-        elementsByDslID.put(ctx.id.getText(), person);
+        if (ctx.id != null) {
+            elementsByDslID.put(ctx.id.getText(), person);
+        }
     }
 
     @Override

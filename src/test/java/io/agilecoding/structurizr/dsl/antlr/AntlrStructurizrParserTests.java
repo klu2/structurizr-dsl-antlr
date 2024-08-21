@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.io.IOException;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class AntlrStructurizrParserTests {
@@ -68,6 +69,28 @@ public class AntlrStructurizrParserTests {
     void excludeImpliedRelationship() throws IOException {
         Workspace workspace = parseWorkspace("exclude-implied-relationship.dsl");
 
+    }
+
+    @Test
+    void relationships() throws IOException {
+        Workspace workspace = parseWorkspace("relationships.dsl");
+
+    }
+
+    @Test
+    void namesWithoutQuotes() throws IOException {
+        Workspace workspace = parseWorkspace("names-without-quotes.dsl");
+        assertNotNull(workspace.getModel().getSoftwareSystemWithName("ss"));
+        assertNotNull(workspace.getModel().getPersonWithName("user"));
+    }
+
+    @Test
+    @Disabled
+    void hierarchicalIdentifiers() throws IOException {
+        Workspace workspace = parseWorkspace("hierarchical-identifiers.dsl");
+
+        assertEquals(0, requireNonNull(workspace.getModel().getSoftwareSystemWithName("B")).getRelationships().size());
+        assertEquals(0, requireNonNull(workspace.getModel().getPersonWithName("A")).getRelationships().size());
     }
 
     private Workspace parseWorkspace(String fileName) throws IOException {
