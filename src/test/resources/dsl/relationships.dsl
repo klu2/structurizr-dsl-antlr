@@ -1,8 +1,12 @@
 workspace {
 
     model {
-        person User1
-        person "User2"
-        p3 = person "User3"
+        softwareSystem1 = softwareSystem "Software System"
+        person User {
+            -> softwareSystem1 "Uses"
+        }
+        person "User1" {
+            this -> softwareSystem1 "Uses"
+        }
     }
 }

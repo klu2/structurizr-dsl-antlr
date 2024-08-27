@@ -44,6 +44,17 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
         if (ctx.id != null) {
             elementsByDslID.put(ctx.id.getText(), person);
         }
+        for (StructurizrDSLParser.RelationshipContext relationshipContext : ctx.relationship()) {
+            // TODO: check source
+            ModelItem destination = this.elementsByDslID.get(relationshipContext.destination.getText());
+            if (destination instanceof SoftwareSystem softwareSystem) {
+                person.uses(softwareSystem, relationshipContext.description.getText());
+            } else if (destination instanceof Container container) {
+                person.uses(container, relationshipContext.description.getText());
+            } else if (destination instanceof CustomElement customElement) {
+                person.uses(customElement, relationshipContext.description.getText());
+            }
+        }
     }
 
     @Override
