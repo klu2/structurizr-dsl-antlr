@@ -1,16 +1,16 @@
 grammar StructurizrDSL;
 
-workspace: 'workspace' (name=(ID | QUOTED_STRING) (description=QUOTED_STRING)?)? '{' identifierMode? model? views? properties? '}';
+workspace: 'workspace' (name=identifier (description=QUOTED_STRING)?)? '{' identifierMode? model? views? properties? '}';
 
 identifierMode: '!identifiers' ('hierarchical'|'flat');
 model: 'model' '{' (person | softwareSystem | relationship)* '}';
 views: 'views' '{' (systemContextView | dynamicView | systemLandscapeView)*  '}';
 
-person: (id=ID '=')? 'person' name=(ID | QUOTED_STRING) (description=QUOTED_STRING)?;
-softwareSystem: (id=ID '=')? 'softwareSystem' name=(ID | QUOTED_STRING) (description=QUOTED_STRING)? ('{' (container)* '}')?;
-container: id=ID '=' 'container' name=(ID | QUOTED_STRING) (description=QUOTED_STRING)? ('{' (component)* '}')?;
-component: id=ID '=' 'component' name=(ID | QUOTED_STRING) (description=QUOTED_STRING)?;
-relationship: (id=ID '=')? source=ID '->' destination=ID (description=QUOTED_STRING)?;
+person: (id=ID '=')? 'person' name=identifier (description=QUOTED_STRING)? ('{' (relationship)* '}')?;
+softwareSystem: (id=ID '=')? 'softwareSystem' name=identifier (description=QUOTED_STRING)? ('{' (container)* '}')?;
+container: id=ID '=' 'container' name=identifier (description=QUOTED_STRING)? ('{' (component)* '}')?;
+component: id=ID '=' 'component' name=identifier (description=QUOTED_STRING)?;
+relationship: ((id=ID '=')? source=ID)? '->' destination=ID (description=QUOTED_STRING)?;
 
 systemContextView: 'systemContext' softwareSystemId=ID '{' include* exclude* autolayout? '}';
 systemLandscapeView: 'systemLandscape' '{' include* exclude* '}';
@@ -25,6 +25,8 @@ property: key=QUOTED_STRING value=QUOTED_STRING;
 autolayout: 'autolayout' | 'autoLayout';
 
 idList: ID (ID)*;
+
+identifier: ID | QUOTED_STRING;
 
 ID: [a-zA-Z_][a-zA-Z_0-9]*;
 QUOTED_STRING
