@@ -95,10 +95,10 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
                 } else if (destination instanceof CustomElement customElement) {
                     relationship = staticStructureElement.uses(customElement, description);
                 } else {
-                    throw new RuntimeException("cannot handle " + destination.getClass() + " as destination type");
+                    throw new UnsupportedOperationException("cannot handle " + destination.getClass() + " as destination type");
                 }
             } else {
-                throw new RuntimeException("cannot handle " + source.getClass() + " as source type");
+                throw new UnsupportedOperationException("cannot handle " + source.getClass() + " as source type");
             }
             if (relationship == null) {
                 throw new RuntimeException("relationship has not been created");
@@ -135,8 +135,9 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
                 } else {
                     dynamicView.add(sourceElement, targetElement);
                 }
+            } else {
+                throw new UnsupportedOperationException("cannot yet handle " + source.getClass() + " and " + destination.getClass());
             }
-            // TODO other combinations of source and destination
         });
     }
 
@@ -160,7 +161,7 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
                 } else if (includeContext.elementIdentifier().starRelationship() != null) {
                     throw new RuntimeException("cannot include all relationships");
                 } else {
-                    throw new RuntimeException("unexpected path");
+                    throw new UnsupportedOperationException("unexpected path");
                 }
             } else if (config.exclude() != null) {
                 var excludeContext = config.exclude();
@@ -172,7 +173,7 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
                         } else if (element.getElement() instanceof SoftwareSystem softwareSystem) {
                             view.remove(softwareSystem);
                         } else {
-                            throw new RuntimeException("cannot remove " + element.getElement());
+                            throw new UnsupportedOperationException("cannot remove " + element.getElement());
                         }
                     }
                 } else if (excludeContext.elementIdentifier().idList() != null) {
@@ -192,7 +193,7 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
                         view.remove(relationship.getRelationship());
                     }
                 } else {
-                    throw new RuntimeException("unexpected path");
+                    throw new UnsupportedOperationException("unexpected path");
                 }
             } else if (config.autolayout() != null) {
                 view.enableAutomaticLayout();
