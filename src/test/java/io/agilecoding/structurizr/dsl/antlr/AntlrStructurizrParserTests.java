@@ -21,65 +21,79 @@ public class AntlrStructurizrParserTests {
     @Test
     @Disabled
     void amazonWebServices() throws IOException {
-        Workspace workspace = parseWorkspace("amazon-web-services.dsl");
-        assertEquals("Amazon Web Services Example", workspace.getName());
+        var workspace = parseAndAssertWorkspace("amazon-web-services.dsl");
+        assertEquals("Amazon Web Services Example", workspace.getWorkspace().getName());
     }
 
     @Test
     @Disabled
     void bibBankPlc() throws IOException {
-        Workspace workspace = parseWorkspace("big-bank-plc.dsl");
-        assertEquals("Big Bank plc", workspace.getName());
+        var workspace = parseAndAssertWorkspace("big-bank-plc.dsl");
+        assertEquals("Big Bank plc", workspace.getWorkspace().getName());
     }
 
     @Test
     void gettingStarted() throws IOException {
-        Workspace workspace = parseWorkspace("getting-started.dsl");
-        assertEquals("", workspace.getName());
+        var workspace = parseAndAssertWorkspace("getting-started.dsl");
+        assertEquals("", workspace.getWorkspace().getName());
 
-        Person user = workspace.getModel().getPersonWithName("User");
-        assertNotNull(user);
+        Person user = workspace.getPersonWithName("User");
         assertEquals("", user.getDescription());
 
-        SoftwareSystem softwareSystem = workspace.getModel().getSoftwareSystemWithName("Software System");
-        assertNotNull(softwareSystem);
+        SoftwareSystem softwareSystem = workspace.getSoftwareSystemWithName("Software System");
 
         assertTrue(user.hasEfferentRelationshipWith(softwareSystem));
 
-        assertEquals(1, workspace.getViews().getSystemContextViews().size());
-        SystemContextView systemContextView = workspace.getViews().getSystemContextViews().iterator().next();
+        assertEquals(1, workspace.getWorkspace().getViews().getSystemContextViews().size());
+        SystemContextView systemContextView = workspace.getWorkspace().getViews().getSystemContextViews().iterator().next();
         assertEquals(2, systemContextView.getElements().size());
     }
 
     @Test
     void workspaceProperties() throws IOException {
-        Workspace workspace = parseWorkspace("workspace-properties.dsl");
-
-        assertEquals("false", workspace.getProperties().get("structurizr.dslEditor"));
+        var workspace = parseAndAssertWorkspace("workspace-properties.dsl");
+        workspace.assertWorkspaceProperty("structurizr.dslEditor", "false");
     }
 
     @Test
     void dynamic() throws IOException {
-        Workspace workspace = parseWorkspace("dynamic.dsl");
+        var workspace = parseAndAssertWorkspace("dynamic.dsl");
 
-        assertEquals(2, workspace.getViews().getDynamicViews().size());
+        assertEquals(2, workspace.getWorkspace().getViews().getDynamicViews().size());
+    }
+
+    @Test
+    void includeImpliedRelationship() throws Exception {
+        var workspace = parseAndAssertWorkspace("include-implied-relationship.dsl");
+
+        // check the system landscape view includes a relationship
+        assertEquals(1, workspace.getSystemLandscapeView().getRelationships().size());
     }
 
     @Test
     void excludeImpliedRelationship() throws IOException {
-        Workspace workspace = parseWorkspace("exclude-implied-relationship.dsl");
-
+        var workspace = parseAndAssertWorkspace("exclude-implied-relationship.dsl");
+        var landscapeView = workspace.getSystemLandscapeView();
+        assertEquals(2, landscapeView.getElements().size());
+        assertEquals(0, landscapeView.getRelationships().size());
     }
 
     @Test
     void relationships() throws IOException {
-        Workspace workspace = parseWorkspace("relationships.dsl");
+        var workspace = parseAndAssertWorkspace("relationships.dsl");
 
+        SoftwareSystem softwareSystem = workspace.getModel().getSoftwareSystemWithName("Software System");
+
+        Person user = workspace.getPersonWithName("User");
+        workspace.assertHasRelationship(user, softwareSystem, "Uses");
+
+        Person user1 = workspace.getPersonWithName("User1");
+        workspace.assertHasRelationship(user1, softwareSystem, "uses");
     }
 
     @Test
     void namesWithoutQuotes() throws IOException {
-        Workspace workspace = parseWorkspace("names-without-quotes.dsl");
+        var workspace = parseAndAssertWorkspace("names-without-quotes.dsl");
         assertNotNull(workspace.getModel().getSoftwareSystemWithName("ss"));
         assertNotNull(workspace.getModel().getPersonWithName("user"));
     }
@@ -87,18 +101,19 @@ public class AntlrStructurizrParserTests {
     @Test
     @Disabled
     void hierarchicalIdentifiers() throws IOException {
-        Workspace workspace = parseWorkspace("hierarchical-identifiers.dsl");
+        var workspace = parseAndAssertWorkspace("hierarchical-identifiers.dsl");
 
         assertEquals(0, requireNonNull(workspace.getModel().getSoftwareSystemWithName("B")).getRelationships().size());
         assertEquals(0, requireNonNull(workspace.getModel().getPersonWithName("A")).getRelationships().size());
     }
 
-    private Workspace parseWorkspace(String fileName) throws IOException {
+    private WorkspaceAssertions parseAndAssertWorkspace(String fileName) throws IOException {
         File file = new File("src/test/resources/dsl/" + fileName);
         if (!file.exists()) {
             Assertions.fail("File not found: " + file.getAbsolutePath());
         }
-        return parser.parseWorkspaceFromDsl(file.toPath());
+        Workspace workspace = parser.parseWorkspaceFromDsl(file.toPath());
+        return new WorkspaceAssertions(workspace);
     }
 }
 

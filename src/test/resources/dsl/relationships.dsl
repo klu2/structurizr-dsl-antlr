@@ -6,7 +6,7 @@ workspace {
             -> softwareSystem1 "Uses"
         }
         person "User1" {
-            this -> softwareSystem1 "Uses"
+            this -> softwareSystem1 "uses"
         }
     }
 }

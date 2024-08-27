@@ -15,7 +15,8 @@ workspace {
     views {
         systemLandscape {
             include *
-            exclude r
+            exclude *->*
+            include r
         }
     }
 

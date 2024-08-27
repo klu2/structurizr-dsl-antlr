@@ -12,17 +12,23 @@ container: id=ID '=' 'container' name=identifier (description=QUOTED_STRING)? ('
 component: id=ID '=' 'component' name=identifier (description=QUOTED_STRING)?;
 relationship: ((id=ID '=')? source=ID)? '->' destination=ID (description=QUOTED_STRING)?;
 
-systemContextView: 'systemContext' softwareSystemId=ID '{' include* exclude* autolayout? '}';
-systemLandscapeView: 'systemLandscape' '{' include* exclude* '}';
-dynamicView: 'dynamic' STAR '{' (relationship)*  (autolayout)? '}';
+systemContextView: 'systemContext' softwareSystemId=ID '{' viewConfiguration* '}';
+systemLandscapeView: 'systemLandscape' '{' viewConfiguration* '}';
+dynamicView: 'dynamic' star '{' (relationship)*  (autolayout)? '}';
 
-include: 'include' (STAR | idList);
-exclude: 'exclude' (STAR | idList);
+viewConfiguration: include | exclude | autolayout;
+include: 'include' elementIdentifier;
+exclude: 'exclude' elementIdentifier;
 
 properties: 'properties' '{' (property)* '}';
 property: key=QUOTED_STRING value=QUOTED_STRING;
 
 autolayout: 'autolayout' | 'autoLayout';
+
+elementIdentifier: starRelationship | star | idList;
+
+starRelationship: STAR_RELATIONSHIP;
+star: STAR;
 
 idList: ID (ID)*;
 
@@ -36,6 +42,7 @@ QUOTED_STRING
 
 ESC : '\\' 'n' {setText("\n");} ;
 STAR: '*';
+STAR_RELATIONSHIP: '*->*';
 WS: [ \t\r\n]+ -> skip;
 
 // Lexer rules for comments

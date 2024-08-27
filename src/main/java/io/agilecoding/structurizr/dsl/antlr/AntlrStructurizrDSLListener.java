@@ -2,20 +2,18 @@ package io.agilecoding.structurizr.dsl.antlr;
 
 import com.structurizr.Workspace;
 import com.structurizr.model.*;
-import com.structurizr.view.DynamicView;
-import com.structurizr.view.SystemContextView;
-import com.structurizr.view.SystemLandscapeView;
+import com.structurizr.view.*;
 import io.agilecoding.structurizr.dsl.antlr.internal.StructurizrDSLBaseListener;
 import io.agilecoding.structurizr.dsl.antlr.internal.StructurizrDSLParser;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
 
     private Workspace workspace;
-    private final Map<String, ModelItem> elementsByDslID = new HashMap<>();
+    private final IdentifiersRegister identifiersRegister = new IdentifiersRegister();
 
     @Override
     public void enterWorkspace(StructurizrDSLParser.WorkspaceContext ctx) {
@@ -24,6 +22,7 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
         } else {
             this.workspace = new Workspace(ctx.name.getText(), ctx.description.getText());
         }
+        workspace.getModel().setImpliedRelationshipsStrategy(new CreateImpliedRelationshipsUnlessAnyRelationshipExistsStrategy());
     }
 
     @Override
@@ -42,11 +41,11 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
             person.setDescription(ctx.description.getText());
         }
         if (ctx.id != null) {
-            elementsByDslID.put(ctx.id.getText(), person);
+            identifiersRegister.register(ctx.id.getText(), person);
         }
         for (StructurizrDSLParser.RelationshipContext relationshipContext : ctx.relationship()) {
             // TODO: check source
-            ModelItem destination = this.elementsByDslID.get(relationshipContext.destination.getText());
+            ModelItem destination = this.identifiersRegister.get(relationshipContext.destination.getText());
             if (destination instanceof SoftwareSystem softwareSystem) {
                 person.uses(softwareSystem, relationshipContext.description.getText());
             } else if (destination instanceof Container container) {
@@ -64,15 +63,27 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
             softwareSystem.setDescription(ctx.description.getText());
         }
         if (ctx.id != null) {
-            elementsByDslID.put(ctx.id.getText(), softwareSystem);
+            identifiersRegister.register(ctx.id.getText(), softwareSystem);
+        }
+        if (ctx.container() != null) {
+            for (var containerCtx : ctx.container()) {
+                Container container = softwareSystem.addContainer(ctx.name.getText());
+                if (containerCtx.description != null) {
+                    container.setDescription(containerCtx.description.getText());
+                }
+                if (containerCtx.id != null) {
+                    identifiersRegister.register(containerCtx.id.getText(), container);
+                }
+            }
         }
     }
 
     @Override
     public void exitModel(StructurizrDSLParser.ModelContext ctx) {
         for (var relCtx : ctx.relationship()) {
-            ModelItem source = this.elementsByDslID.get(relCtx.source.getText());
-            ModelItem destination = this.elementsByDslID.get(relCtx.destination.getText());
+            ModelItem source = this.identifiersRegister.get(relCtx.source.getText());
+
+            ModelItem destination = this.identifiersRegister.get(relCtx.destination.getText());
             String description = (relCtx.description != null) ? relCtx.description.getText() : "";
 
             Relationship relationship = null;
@@ -83,55 +94,40 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
                     relationship = staticStructureElement.uses(container, description);
                 } else if (destination instanceof CustomElement customElement) {
                     relationship = staticStructureElement.uses(customElement, description);
+                } else {
+                    throw new RuntimeException("cannot handle " + destination.getClass() + " as destination type");
                 }
+            } else {
+                throw new RuntimeException("cannot handle " + source.getClass() + " as source type");
+            }
+            if (relationship == null) {
+                throw new RuntimeException("relationship has not been created");
             }
             if (relCtx.id != null) {
-                elementsByDslID.put(relCtx.id.getText(), relationship);
+                identifiersRegister.register(relCtx.id.getText(), relationship);
             }
         }
     }
 
     @Override
+    public void exitSystemLandscapeView(StructurizrDSLParser.SystemLandscapeViewContext ctx) {
+        SystemLandscapeView view = this.workspace.getViews().createSystemLandscapeView(UUID.randomUUID().toString(), "");
+        configureView(ctx.viewConfiguration(), view);
+    }
+
+    @Override
     public void exitSystemContextView(StructurizrDSLParser.SystemContextViewContext ctx) {
-        SoftwareSystem softwareSystem = (SoftwareSystem) this.elementsByDslID.get(ctx.softwareSystemId.getText());
+        SoftwareSystem softwareSystem = (SoftwareSystem) this.identifiersRegister.get(ctx.softwareSystemId.getText());
         SystemContextView view = this.workspace.getViews().createSystemContextView(softwareSystem, UUID.randomUUID().toString(), "");
-        for (StructurizrDSLParser.IncludeContext includeContext : ctx.include()) {
-            if (includeContext.STAR() != null) {
-                view.addAllSoftwareSystems();
-                view.addAllPeople();
-            } else {
-                for (var id : includeContext.idList().ID()) {
-                    ModelItem element = this.elementsByDslID.get(id.getText());
-                    if (element instanceof SoftwareSystem ss) {
-                        view.add(ss);
-                    } else if (element instanceof Person p) {
-                        view.add(p);
-                    } else if (element instanceof Relationship r) {
-                        view.add(r);
-                    }
-                }
-            }
-        }
-        for (var excludeContext : ctx.exclude()) {
-            for (var id : excludeContext.idList().ID()) {
-                ModelItem element = this.elementsByDslID.get(id.getText());
-                if (element instanceof SoftwareSystem ss) {
-                    view.remove(ss);
-                } else if (element instanceof Person p) {
-                    view.remove(p);
-                } else if (element instanceof Relationship r) {
-                    view.remove(r);
-                }
-            }
-        }
+        configureView(ctx.viewConfiguration(), view);
     }
 
     @Override
     public void exitDynamicView(StructurizrDSLParser.DynamicViewContext ctx) {
         final DynamicView dynamicView = this.workspace.getViews().createDynamicView("", "");
         ctx.relationship().forEach(relationshipContext -> {
-            ModelItem source = this.elementsByDslID.get(relationshipContext.source.getText());
-            ModelItem destination = this.elementsByDslID.get(relationshipContext.destination.getText());
+            ModelItem source = this.identifiersRegister.get(relationshipContext.source.getText());
+            ModelItem destination = this.identifiersRegister.get(relationshipContext.destination.getText());
 
             if (source instanceof StaticStructureElement sourceElement && destination instanceof StaticStructureElement targetElement) {
                 if (relationshipContext.description != null) {
@@ -144,36 +140,62 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
         });
     }
 
-    @Override
-    public void exitSystemLandscapeView(StructurizrDSLParser.SystemLandscapeViewContext ctx) {
-        SystemLandscapeView view = this.workspace.getViews().createSystemLandscapeView(UUID.randomUUID().toString(), "");
-        for (StructurizrDSLParser.IncludeContext includeContext : ctx.include()) {
-            if (includeContext.STAR() != null) {
-                view.addAllSoftwareSystems();
-                view.addAllPeople();
-            } else {
-                for (var id : includeContext.idList().ID()) {
-                    ModelItem element = this.elementsByDslID.get(id.getText());
-                    if (element instanceof SoftwareSystem ss) {
-                        view.add(ss);
-                    } else if (element instanceof Person p) {
-                        view.add(p);
-                    } else if (element instanceof Relationship r) {
-                        view.add(r);
+    private void configureView(List<StructurizrDSLParser.ViewConfigurationContext> viewConfigurationItems, StaticView view) {
+        for (var config : viewConfigurationItems) {
+            if (config.include() != null) {
+                var includeContext = config.include();
+                if (includeContext.elementIdentifier().star() != null) {
+                    view.addDefaultElements();
+                } else if (includeContext.elementIdentifier().idList() != null) {
+                    for (var id : includeContext.elementIdentifier().idList().ID()) {
+                        ModelItem element = this.identifiersRegister.get(id.getText());
+                        if (element instanceof SoftwareSystem ss) {
+                            view.add(ss);
+                        } else if (element instanceof Person p) {
+                            view.add(p);
+                        } else if (element instanceof Relationship r) {
+                            DslContextUtils.getConnectedRelationships(r).forEach(view::add);
+                        }
                     }
+                } else if (includeContext.elementIdentifier().starRelationship() != null) {
+                    throw new RuntimeException("cannot include all relationships");
+                } else {
+                    throw new RuntimeException("unexpected path");
                 }
-            }
-        }
-        for (var excludeContext : ctx.exclude()) {
-            for (var id : excludeContext.idList().ID()) {
-                ModelItem element = this.elementsByDslID.get(id.getText());
-                if (element instanceof SoftwareSystem ss) {
-                    view.remove(ss);
-                } else if (element instanceof Person p) {
-                    view.remove(p);
-                } else if (element instanceof Relationship r) {
-                    view.remove(r);
+            } else if (config.exclude() != null) {
+                var excludeContext = config.exclude();
+                if (excludeContext.elementIdentifier().star() != null) {
+                    Set<ElementView> elements = view.getElements();
+                    for (ElementView element : elements) {
+                        if (element.getElement() instanceof Person person) {
+                            view.remove(person);
+                        } else if (element.getElement() instanceof SoftwareSystem softwareSystem) {
+                            view.remove(softwareSystem);
+                        } else {
+                            throw new RuntimeException("cannot remove " + element.getElement());
+                        }
+                    }
+                } else if (excludeContext.elementIdentifier().idList() != null) {
+                    for (var id : excludeContext.elementIdentifier().idList().ID()) {
+                        ModelItem element = this.identifiersRegister.get(id.getText());
+                        if (element instanceof SoftwareSystem ss) {
+                            view.remove(ss);
+                        } else if (element instanceof Person p) {
+                            view.remove(p);
+                        } else if (element instanceof Relationship r) {
+                            DslContextUtils.getConnectedRelationships(r).forEach(view::remove);
+                        }
+                    }
+                } else if (excludeContext.elementIdentifier().starRelationship() != null) {
+                    Set<RelationshipView> relationships = view.getRelationships();
+                    for (RelationshipView relationship : relationships) {
+                        view.remove(relationship.getRelationship());
+                    }
+                } else {
+                    throw new RuntimeException("unexpected path");
                 }
+            } else if (config.autolayout() != null) {
+                view.enableAutomaticLayout();
             }
         }
     }
