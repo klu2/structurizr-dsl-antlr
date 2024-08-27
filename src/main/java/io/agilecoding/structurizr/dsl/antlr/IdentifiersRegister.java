@@ -5,6 +5,7 @@ import com.structurizr.model.ModelItem;
 import javax.annotation.Nonnull;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 class IdentifiersRegister {
 
