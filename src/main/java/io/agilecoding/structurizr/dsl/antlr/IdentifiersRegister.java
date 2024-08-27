@@ -21,7 +21,7 @@ class IdentifiersRegister {
 
     public void register(@Nonnull String id, @Nonnull ModelItem modelItem) {
         if (elementsByDslID.containsKey(id)) {
-            throw new RuntimeException("Element with id " + id + " already exists");
+            throw new IllegalArgumentException("Element with id " + id + " already exists");
         }
         elementsByDslID.put(id, modelItem);
     }
