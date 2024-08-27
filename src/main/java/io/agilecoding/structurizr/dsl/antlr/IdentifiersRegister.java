@@ -30,7 +30,7 @@ class IdentifiersRegister {
     public ModelItem get(String id) {
         ModelItem modelItem = this.elementsByDslID.get(id);
         if (modelItem == null) {
-            throw new RuntimeException("Element with id " + id + " not found");
+            throw new NoSuchElementException("Element with id " + id + " not found");
         }
         return modelItem;
     }
