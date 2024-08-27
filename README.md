@@ -10,7 +10,7 @@ DSL are yet supported.
 The package ```structurizr-dsl``` from https://github.com/structurizr/java is a fully working parser maintained by the Structurizr team.
 It comes dependency-free and therefore has its own lexer and parser implementation. 
 
-Using ANTLR as a parser generator, we can define a grammar for the DSL and generate the lexer and parser classes. This would have two benefits:
+Using ANTLR as a parser generator, we can define a grammar for the DSL and generate the lexer and parser classes. This would have some benefits:
 
 * Much lesser code to maintain as there is no hand-written lexer and parser anymore
 * ANTLR is a well-known and widely used tool for parsing
