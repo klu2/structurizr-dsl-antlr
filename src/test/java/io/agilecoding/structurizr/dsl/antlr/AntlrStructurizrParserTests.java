@@ -1,6 +1,8 @@
 package io.agilecoding.structurizr.dsl.antlr;
 
 import com.structurizr.Workspace;
+import com.structurizr.model.Component;
+import com.structurizr.model.Container;
 import com.structurizr.model.Person;
 import com.structurizr.model.SoftwareSystem;
 import com.structurizr.view.SystemContextView;
@@ -99,12 +101,21 @@ public class AntlrStructurizrParserTests {
     }
 
     @Test
-    @Disabled
     void hierarchicalIdentifiers() throws IOException {
         var workspace = parseAndAssertWorkspace("hierarchical-identifiers.dsl");
 
         assertEquals(0, requireNonNull(workspace.getModel().getSoftwareSystemWithName("B")).getRelationships().size());
         assertEquals(0, requireNonNull(workspace.getModel().getPersonWithName("A")).getRelationships().size());
+
+        SoftwareSystem b = workspace.getSoftwareSystemWithName("B");
+        Container c = b.getContainerWithName("C");
+        assertNotNull(c);
+        Component d = c.getComponentWithName("D");
+        assertNotNull(d, "component D not found");
+        Component a = c.getComponentWithName("A");
+        assertNotNull(a, "component D not found");
+
+        workspace.assertHasRelationship(d, a, "");
     }
 
     private WorkspaceAssertions parseAndAssertWorkspace(String fileName) throws IOException {

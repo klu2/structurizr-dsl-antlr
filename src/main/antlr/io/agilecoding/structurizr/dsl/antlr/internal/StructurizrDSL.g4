@@ -1,14 +1,15 @@
 grammar StructurizrDSL;
 
-workspace: 'workspace' (name=identifier (description=QUOTED_STRING)?)? '{' identifierMode? model? views? properties? '}';
+workspace: 'workspace' (name=identifier (description=QUOTED_STRING)?)? '{' identifierModeDefinition? model? views? properties? '}';
 
-identifierMode: '!identifiers' ('hierarchical'|'flat');
+identifierModeDefinition: '!identifiers' (iMode=identifierMode);
+identifierMode: 'hierarchical' | 'flat';
 model: 'model' '{' (person | softwareSystem | relationship)* '}';
 views: 'views' '{' (systemContextView | dynamicView | systemLandscapeView)*  '}';
 
 person: (id=ID '=')? 'person' name=identifier (description=QUOTED_STRING)? ('{' (relationship)* '}')?;
-softwareSystem: (id=ID '=')? 'softwareSystem' name=identifier (description=QUOTED_STRING)? ('{' (container)* '}')?;
-container: id=ID '=' 'container' name=identifier (description=QUOTED_STRING)? ('{' (component)* '}')?;
+softwareSystem: (id=ID '=')? 'softwareSystem' name=identifier (description=QUOTED_STRING)? ('{' (container)* (relationship)* '}')?;
+container: id=ID '=' 'container' name=identifier (description=QUOTED_STRING)? ('{' (component)* (relationship)* '}')?;
 component: id=ID '=' 'component' name=identifier (description=QUOTED_STRING)?;
 relationship: ((id=ID '=')? source=ID)? '->' destination=ID (description=QUOTED_STRING)?;
 
