@@ -109,7 +109,7 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
         registerRelationships(null, ctx.relationship());
     }
 
-    private void registerRelationships(@Nullable  Element contextElement, List<StructurizrDSLParser.RelationshipContext> relationships) {
+    private void registerRelationships(@Nullable Element contextElement, List<StructurizrDSLParser.RelationshipContext> relationships) {
         for (var relCtx : relationships) {
             Element source = this.identifiersRegister.getElement(relCtx.source.getText(), contextElement);
 
