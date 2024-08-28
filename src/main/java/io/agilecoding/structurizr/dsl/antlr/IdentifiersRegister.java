@@ -9,8 +9,8 @@ import java.util.*;
 
 class IdentifiersRegister {
 
-    private final Map<String, Element> elementsByIdentifier = new HashMap<>();
-    private final Map<String, Relationship> relationshipsByIdentifier = new HashMap<>();
+    private final BidirectionalMap<String, Element> elementsByIdentifier = new BidirectionalMap<>();
+    private final BidirectionalMap<String, Relationship> relationshipsByIdentifier = new BidirectionalMap<>();
     private IdentifierScope identifierScope = IdentifierScope.Flat;
 
     public void setIdentifierScope(IdentifierScope identifierScope) {
@@ -21,16 +21,10 @@ class IdentifiersRegister {
         if (identifierScope == IdentifierScope.Hierarchical) {
             id = calculateHierarchicalIdentifier(id, element);
         }
-        if (elementsByIdentifier.containsKey(id)) {
-            throw new IllegalArgumentException("Element with id " + id + " already exists");
-        }
         elementsByIdentifier.put(id, element);
     }
 
     public void register(@Nonnull String id, @Nonnull Relationship relationship) {
-        if (relationshipsByIdentifier.containsKey(id)) {
-            throw new IllegalArgumentException("Relationship with id " + id + " already exists");
-        }
         relationshipsByIdentifier.put(id, relationship);
     }
 
@@ -47,29 +41,13 @@ class IdentifiersRegister {
         }
     }
 
-    /**
-     * Finds the identifier used when defining an element.
-     *
-     * @param element an Element instance
-     * @return a String identifier (could be null if no identifier was explicitly specified)
-     */
-    public String findIdentifier(Element element) {
-        if (elementsByIdentifier.containsValue(element)) {
-            for (String identifier : elementsByIdentifier.keySet()) {
-                Element e = elementsByIdentifier.get(identifier);
-
-                if (e.equals(element)) {
-                    return identifier;
-                }
-            }
-        }
-
-        return null;
+    private String findIdentifier(Element element) {
+        return elementsByIdentifier.getKeyByValue(element);
     }
 
     @Nonnull
     public Element getElement(String id) {
-        Element modelItem = this.elementsByIdentifier.get(id);
+        Element modelItem = this.elementsByIdentifier.getValueByKey(id);
         if (modelItem == null) {
             throw new NoSuchElementException("Element with id " + id + " not found");
         }
@@ -87,7 +65,7 @@ class IdentifiersRegister {
         }
         Set<String> possibleIds = IdentifierReducer.reduceString(contextElementId + "." + id);
         for (String possibleId : possibleIds) {
-            Element modelItem = this.elementsByIdentifier.get(possibleId);
+            Element modelItem = this.elementsByIdentifier.getValueByKey(possibleId);
             if (modelItem != null) {
                 return modelItem;
             }
@@ -97,7 +75,7 @@ class IdentifiersRegister {
 
     @Nonnull
     public ModelItem get(String id) {
-        Relationship relationship = this.relationshipsByIdentifier.get(id);
+        Relationship relationship = this.relationshipsByIdentifier.getValueByKey(id);
         return Objects.requireNonNullElseGet(relationship, () -> getElement(id));
     }
 }
