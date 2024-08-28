@@ -6,6 +6,7 @@ import com.structurizr.view.*;
 import io.agilecoding.structurizr.dsl.antlr.internal.StructurizrDSLBaseListener;
 import io.agilecoding.structurizr.dsl.antlr.internal.StructurizrDSLParser;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -35,6 +36,16 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
     }
 
     @Override
+    public void enterIdentifierModeDefinition(StructurizrDSLParser.IdentifierModeDefinitionContext ctx) {
+        // TODO use LEXER tokens instead of string literals
+        if ("hierarchical".equals(ctx.identifierMode().getText())) {
+            identifiersRegister.setIdentifierScope(IdentifierScope.Hierarchical);
+        } else {
+            identifiersRegister.setIdentifierScope(IdentifierScope.Flat);
+        }
+    }
+
+    @Override
     public void exitPerson(StructurizrDSLParser.PersonContext ctx) {
         Person person = this.workspace.getModel().addPerson(ctx.name.getText());
         if (ctx.description != null) {
@@ -52,6 +63,8 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
                 person.uses(container, relationshipContext.description.getText());
             } else if (destination instanceof CustomElement customElement) {
                 person.uses(customElement, relationshipContext.description.getText());
+            } else {
+                throw new UnsupportedOperationException("cannot handle " + destination.getClass() + " as destination type");
             }
         }
     }
@@ -67,33 +80,54 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
         }
         if (ctx.container() != null) {
             for (var containerCtx : ctx.container()) {
-                Container container = softwareSystem.addContainer(ctx.name.getText());
+                Container container = softwareSystem.addContainer(containerCtx.name.getText());
                 if (containerCtx.description != null) {
                     container.setDescription(containerCtx.description.getText());
                 }
                 if (containerCtx.id != null) {
                     identifiersRegister.register(containerCtx.id.getText(), container);
                 }
+                if (containerCtx.component() != null) {
+                    for (var componentCtx : containerCtx.component()) {
+                        Component component = container.addComponent(componentCtx.name.getText());
+                        if (componentCtx.description != null) {
+                            component.setDescription(componentCtx.description.getText());
+                        }
+                        if (componentCtx.id != null) {
+                            identifiersRegister.register(componentCtx.id.getText(), component);
+                        }
+                    }
+                }
+                registerRelationships(container, containerCtx.relationship());
             }
         }
+        registerRelationships(softwareSystem, ctx.relationship());
     }
 
     @Override
     public void exitModel(StructurizrDSLParser.ModelContext ctx) {
-        for (var relCtx : ctx.relationship()) {
-            ModelItem source = this.identifiersRegister.get(relCtx.source.getText());
+        registerRelationships(null, ctx.relationship());
+    }
 
-            ModelItem destination = this.identifiersRegister.get(relCtx.destination.getText());
+    private void registerRelationships(@Nullable Element contextElement, List<StructurizrDSLParser.RelationshipContext> relationships) {
+        for (var relCtx : relationships) {
+            Element source = this.identifiersRegister.getElement(relCtx.source.getText(), contextElement);
+
+            Element destination = this.identifiersRegister.getElement(relCtx.destination.getText(), contextElement);
             String description = (relCtx.description != null) ? relCtx.description.getText() : "";
 
-            Relationship relationship = null;
+            Relationship relationship;
             if (source instanceof StaticStructureElement staticStructureElement) {
                 if (destination instanceof SoftwareSystem softwareSystem) {
                     relationship = staticStructureElement.uses(softwareSystem, description);
                 } else if (destination instanceof Container container) {
                     relationship = staticStructureElement.uses(container, description);
+                } else if (destination instanceof Component component) {
+                    relationship = staticStructureElement.uses(component, description);
                 } else if (destination instanceof CustomElement customElement) {
                     relationship = staticStructureElement.uses(customElement, description);
+                } else if (destination instanceof Person person) {
+                    throw new IllegalArgumentException("cannot create a relationship from " + source + " to a person " + person);
                 } else {
                     throw new UnsupportedOperationException("cannot handle " + destination.getClass() + " as destination type");
                 }
@@ -117,7 +151,7 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
 
     @Override
     public void exitSystemContextView(StructurizrDSLParser.SystemContextViewContext ctx) {
-        SoftwareSystem softwareSystem = (SoftwareSystem) this.identifiersRegister.get(ctx.softwareSystemId.getText());
+        SoftwareSystem softwareSystem = (SoftwareSystem) this.identifiersRegister.getElement(ctx.softwareSystemId.getText());
         SystemContextView view = this.workspace.getViews().createSystemContextView(softwareSystem, UUID.randomUUID().toString(), "");
         configureView(ctx.viewConfiguration(), view);
     }
@@ -126,8 +160,8 @@ class AntlrStructurizrDSLListener extends StructurizrDSLBaseListener {
     public void exitDynamicView(StructurizrDSLParser.DynamicViewContext ctx) {
         final DynamicView dynamicView = this.workspace.getViews().createDynamicView("", "");
         ctx.relationship().forEach(relationshipContext -> {
-            ModelItem source = this.identifiersRegister.get(relationshipContext.source.getText());
-            ModelItem destination = this.identifiersRegister.get(relationshipContext.destination.getText());
+            Element source = this.identifiersRegister.getElement(relationshipContext.source.getText());
+            Element destination = this.identifiersRegister.getElement(relationshipContext.destination.getText());
 
             if (source instanceof StaticStructureElement sourceElement && destination instanceof StaticStructureElement targetElement) {
                 if (relationshipContext.description != null) {
